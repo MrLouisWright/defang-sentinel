@@ -1,6 +1,6 @@
 {
   "name": "defang-sentinel",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Defang and refang IOCs (hxxps://evil[.]com) in text, logs and reports with several styles, and a CI check that fails when threat reports, tickets or docs contain live, clickable or half-defanged URLs, domains, IPs or emails. CLI, library and GitHub Action. Zero deps.",
   "type": "module",
   "main": "./src/index.js",
