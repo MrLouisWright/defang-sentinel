@@ -1,0 +1,58 @@
+{
+  "name": "defang-sentinel",
+  "version": "0.0.0",
+  "description": "Defang and refang IOCs (hxxps://evil[.]com) in text, logs and reports with several styles, and a CI check that fails when threat reports, tickets or docs contain live, clickable or half-defanged URLs, domains, IPs or emails. CLI, library and GitHub Action. Zero deps.",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "defang-sentinel": "bin/defang-sentinel.js"
+  },
+  "files": [
+    "src",
+    "bin",
+    "action.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "defang",
+    "refang",
+    "ioc",
+    "threat-intelligence",
+    "cti",
+    "incident-response",
+    "dfir",
+    "phishing",
+    "malware-analysis",
+    "security",
+    "markdown",
+    "sarif",
+    "cli",
+    "github-action"
+  ],
+  "author": "Louis Wright <hello@louiswright.co.uk> (https://github.com/MrLouisWright)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MrLouisWright/defang-sentinel.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MrLouisWright/defang-sentinel/issues"
+  },
+  "homepage": "https://github.com/MrLouisWright/defang-sentinel#readme"
+}
