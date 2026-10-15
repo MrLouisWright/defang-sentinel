@@ -1,5 +1,7 @@
 # defang-sentinel
 
+[![npm version](https://img.shields.io/npm/v/defang-sentinel.svg)](https://www.npmjs.com/package/defang-sentinel) [![CI](https://github.com/MrLouisWright/defang-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/MrLouisWright/defang-sentinel/actions/workflows/ci.yml) [![Node](https://img.shields.io/node/v/defang-sentinel.svg)](https://nodejs.org) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 > Defang and refang indicators of compromise, and stop live malicious links from getting into threat reports, tickets and docs.
 
 Threat-intel write-ups, incident tickets and detection repos are full of malicious URLs, domains and IPs. A single clickable `https://` link to a C2 server in a Markdown report is an accident waiting to happen. `defang-sentinel` does three jobs:
