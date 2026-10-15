@@ -23,6 +23,25 @@ CLI, library and GitHub Action. Node.js 18+, **zero runtime dependencies**.
 - `defang`/`refang` can rewrite files in place (`--write`) and are idempotent. Defanging already-defanged text changes nothing.
 - `check` walks directories for text formats (`.md`, `.txt`, `.html`, `.csv`, `.json`, `.yml`, `.eml`, `.log`, `.yar`…; change with `--ext`), skips binaries and `node_modules`, and can ignore fenced code blocks (`--skip-code`).
 
+## Fix mode, code-aware rewriting and hooks
+
+```sh
+defang-sentinel check --fix --skip-code docs/      # defang live IOCs in place, leave code blocks alone
+defang-sentinel defang --style paren report.md     # hxxps://evil(.)com
+defang-sentinel hook install                        # git pre-commit hook
+```
+
+Styles: `brackets`, `full`, `dot`, `minimal`, `paren`, `colon`. `refang(defangValue(x, type, style)) === x` for every style.
+
+Library: `import { defangText, refangText, refangValue, defangValue, fix, installHook, splitCode } from 'defang-sentinel'` (or `require`). This is the stable defang/refang API that other packages (e.g. ioc-sentinel) build on.
+
+pre-commit framework users can add `repo: https://github.com/MrLouisWright/defang-sentinel` with hook id `defang-sentinel` or `defang-sentinel-fix`.
+
+### Module formats and types
+
+Ships **ESM and CommonJS** (`import` and `require` both work, via `exports`), with TypeScript declarations generated from the source at build time. Tests run on Node 18/20/22 in GitHub Actions (`test/`), including require/import checks against the packed tarball; releases are published with npm provenance.
+
+
 ## Rules
 
 | Rule | Default | Meaning |

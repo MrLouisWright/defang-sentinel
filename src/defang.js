@@ -1,17 +1,17 @@
 import { TLDS, FILE_EXT } from './tlds.js';
 
-export const STYLES = ['brackets', 'full', 'dot', 'minimal'];
+export const STYLES = ['brackets', 'full', 'dot', 'minimal', 'paren', 'colon'];
 // Reference sites that threat reports link to on purpose. Used by check() unless disabled.
 export const REFERENCE_DOMAINS = ['attack.mitre.org', 'mitre.org', 'cve.org', '*.cve.org', 'cve.mitre.org', 'nvd.nist.gov', 'nist.gov', 'cisa.gov', '*.cisa.gov', 'ncsc.gov.uk', '*.ncsc.gov.uk', 'virustotal.com', '*.virustotal.com', 'bazaar.abuse.ch', 'urlhaus.abuse.ch', 'threatfox.abuse.ch', 'abuse.ch', 'otx.alienvault.com', 'shodan.io', 'www.shodan.io', 'urlscan.io', 'github.com', 'docs.github.com', 'opensource.org', 'spdx.org', 'npmjs.com', 'www.npmjs.com', 'schema.org', 'json.schemastore.org', 'www.w3.org', 'w3.org', 'img.shields.io', 'learn.microsoft.com', 'msrc.microsoft.com', 'datatracker.ietf.org', 'www.rfc-editor.org', 'example.com', '*.example.com', 'example.org', 'example.net', 'localhost'];
 
 /** Undo defanging. Returns { text, changes }. */
 export function refang(s) {
   const out = String(s)
-    .replace(/\bh(?:xx|XX|xX|Xx|\[x\]|\[xx\]|\*\*|__)p(s?)(?=\[?:)/g, 'http$1')
-    .replace(/\bh(?:xx|XX|xX|Xx)p(s?)\b/g, 'http$1')
-    .replace(/\bf(?:x|X)p\b/g, 'ftp')
-    .replace(/\[:\/\/\]|\[:\]\/\/|\(:\/\/\)|\[:\/\]\//g, '://')
-    .replace(/\[:\]/g, ':')
+    .replace(/\b([hH])(?:xx|XX|xX|Xx|\[x\]|\[xx\]|\*\*|__)([pP])([sS]?)(?=[[({]?:)/g, (_, h, p, x) => h + (h === 'H' ? 'TT' : 'tt') + p + x)
+    .replace(/\b([hH])(?:xx|XX|xX|Xx)([pP])([sS]?)\b/g, (_, h, p, x) => h + (h === 'H' ? 'TT' : 'tt') + p + x)
+    .replace(/\b([fF])[xX]([pP])\b/g, (_, f, p) => f + (f === 'F' ? 'T' : 't') + p)
+    .replace(/\[:\/\/\]|\[:\]\/\/|\(:\/\/\)|\(:\)\/\/|\{:\/\/\}|\[:\/\]\/|:\[\/\/\]/g, '://')
+    .replace(/\[:\]|\(:\)/g, ':')
     .replace(/ ?[[({<] ?(?:\.|dot|DOT|Dot) ?[\])}>] ?/g, '.')
     .replace(/(?<=\w)\\\.(?=\w)/g, '.')
     .replace(/ ?[[({<] ?(?:@|at|AT|At) ?[\])}>] ?/g, '@')
@@ -87,7 +87,7 @@ export function findLive(line, opts = {}) {
   return spans.filter((s) => s.type !== 'skip').sort((a, b) => a.start - b.start);
 }
 
-const DOT = { brackets: '[.]', full: '[.]', dot: '[dot]', minimal: '[.]' };
+const DOT = { brackets: '[.]', full: '[.]', dot: '[dot]', minimal: '[.]', paren: '(.)', colon: '[.]' };
 function defangHost(h, style) {
   if (style === 'minimal') { const i = h.lastIndexOf('.'); return i === -1 ? h : `${h.slice(0, i)}[.]${h.slice(i + 1)}`; }
   return h.replace(/\./g, DOT[style]);
@@ -104,14 +104,44 @@ export function defangValue(v, type = 'auto', style = 'brackets') {
   let [, scheme, auth, rest] = m;
   scheme = scheme.replace(/^http/i, (x) => (x === 'HTTP' ? 'HXXP' : 'hxxp')).replace(/^ftp/i, 'fxp');
   const at = auth.lastIndexOf('@'); const userinfo = at >= 0 ? auth.slice(0, at) + '[@]' : ''; const hostport = at >= 0 ? auth.slice(at + 1) : auth;
-  const sep = style === 'full' ? '[://]' : '://';
+  const sep = style === 'full' ? '[://]' : style === 'colon' ? '[:]//' : '://';
   const path = style === 'full' ? rest.replace(/\./g, '[.]') : rest;
   const hp = hostport.startsWith('[') ? hostport.replace(/:/g, '[:]') : defangHost(hostport, style);
   return `${scheme}${sep}${userinfo}${hp}${path}`;
 }
 
-/** Defang every live indicator in text. Returns { text, changes }. */
+/** Refang a single defanged value (inverse of defangValue for every style). */
+export function refangValue(v) { return refang(v); }
+
+const CODE_RE = /(^|\n)[ \t]*(```|~~~)[^\n]*\n[\s\S]*?(?:\n[ \t]*\2[^\n]*(?=\n|$)|$)|`[^`\n]+`|<(pre|code|script|style)\b[^>]*>[\s\S]*?<\/\3\s*>|<!--[\s\S]*?-->/gi;
+/**
+ * Split text into segments, marking Markdown fenced blocks, inline code spans,
+ * HTML <pre>/<code>/<script>/<style> elements and HTML comments as protected (code: true).
+ * @param {string} text
+ * @returns {{text: string, code: boolean}[]}
+ */
+export function splitCode(text) {
+  const s = String(text); const out = []; let pos = 0;
+  for (const m of s.matchAll(CODE_RE)) {
+    const start = m.index + (m[1] ? m[1].length : 0);
+    if (start > pos) out.push({ text: s.slice(pos, start), code: false });
+    out.push({ text: s.slice(start, m.index + m[0].length), code: true });
+    pos = m.index + m[0].length;
+  }
+  if (pos < s.length || !out.length) out.push({ text: s.slice(pos), code: false });
+  return out;
+}
+
+/**
+ * Defang every live indicator in text. Returns { text, changes }.
+ * With opts.skipCode (Markdown/HTML-aware), code blocks, inline code and <pre>/<code> are left untouched.
+ */
 export function defangText(text, opts = {}) {
+  if (opts.skipCode) {
+    let changes = 0; const { skipCode, ...rest } = opts;
+    const t = splitCode(text).map((seg) => { if (seg.code) return seg.text; const r = defangText(seg.text, rest); changes += r.changes; return r.text; }).join('');
+    return { text: t, changes };
+  }
   const style = opts.style || 'brackets'; let changes = 0;
   const lines = String(text).split('\n').map((line) => {
     const spans = findLive(line, opts);
@@ -121,8 +151,8 @@ export function defangText(text, opts = {}) {
   });
   return { text: lines.join('\n'), changes };
 }
-export function refangText(text) {
-  const out = refang(text); let changes = 0;
+export function refangText(text, opts = {}) {
+  const out = opts.skipCode ? splitCode(text).map((seg) => (seg.code ? seg.text : refang(seg.text))).join('') : refang(text); let changes = 0;
   const a = String(text).split('\n'); const b = out.split('\n');
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) changes++;
   return { text: out, changes };
@@ -138,11 +168,9 @@ export function checkText(text, file, opts = {}) {
   const ignoreDomains = [...(opts.referenceDomains === false ? [] : REFERENCE_DOMAINS), ...(opts.ignoreDomains || [])];
   const o = { ...opts, ignoreDomains };
   const findings = [];
-  let inFence = false;
-  String(text).split(/\r?\n/).forEach((line, i) => {
+  const src = opts.skipCode ? splitCode(text).map((seg) => (seg.code ? seg.text.replace(/[^\r\n]/g, ' ') : seg.text)).join('') : String(text);
+  src.split(/\r?\n/).forEach((line, i) => {
     const ln = i + 1;
-    if (opts.skipCode && /^\s*(```|~~~)/.test(line)) { inFence = !inFence; return; }
-    if (opts.skipCode && inFence) return;
     const linkHits = new Set();
     for (const re of LINK) for (const m of line.matchAll(re)) {
       const live = findLive(m[1], o).find((s) => s.type === 'url');

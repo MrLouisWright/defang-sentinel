@@ -1,0 +1,10 @@
+- id: defang-sentinel
+  name: defang-sentinel (no live IOCs in docs)
+  entry: defang-sentinel check --skip-code
+  language: node
+  files: \.(md|markdown|txt|rst|adoc|html?|csv|ioc|yara?)$
+- id: defang-sentinel-fix
+  name: defang-sentinel --fix
+  entry: defang-sentinel check --skip-code --fix
+  language: node
+  files: \.(md|markdown|txt|rst|adoc|html?|csv|ioc|yara?)$

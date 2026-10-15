@@ -1,10 +1,10 @@
-import { readFileSync, statSync, readdirSync } from 'node:fs';
-import { join, relative, extname } from 'node:path';
+import { readFileSync, writeFileSync, statSync, readdirSync, existsSync, mkdirSync, chmodSync } from 'node:fs';
+import { join, relative, extname, dirname } from 'node:path';
 import { buildReport, exceeds, exitCode, formatText, formatJson, formatSarif, formatMarkdown, SEVERITIES, ConfigError, validateConfig } from './core.js';
 import { RULES } from './rules.js';
-import { refang, refangText, defangText, defangValue, findLive, checkText, STYLES, REFERENCE_DOMAINS } from './defang.js';
+import { refang, refangValue, refangText, defangText, defangValue, findLive, checkText, splitCode, STYLES, REFERENCE_DOMAINS } from './defang.js';
 
-export { refang, refangText, defangText, defangValue, findLive, checkText, STYLES, REFERENCE_DOMAINS, RULES, exceeds, exitCode, formatText, formatJson, formatSarif, formatMarkdown, SEVERITIES, ConfigError };
+export { refang, refangValue, splitCode, refangText, defangText, defangValue, findLive, checkText, STYLES, REFERENCE_DOMAINS, RULES, exceeds, exitCode, formatText, formatJson, formatSarif, formatMarkdown, SEVERITIES, ConfigError };
 export const VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 export const TOOL = { name: 'defang-sentinel', version: VERSION, rules: RULES, title: 'defang-sentinel', emoji: '🧯', defaultFailOn: 'medium' };
 
@@ -41,4 +41,45 @@ export function check(inputs, opts = {}) {
     }
   }
   return buildReport(TOOL, results, opts);
+}
+
+const MARKUP = new Set(['.md', '.markdown', '.html', '.htm', '.rst', '.adoc']);
+/**
+ * Fix mode: defang live indicators in place in files/directories.
+ * Markdown/HTML files are rewritten code-aware (code blocks and inline code untouched) unless opts.skipCode === false.
+ * Reference domains and opts.ignoreDomains stay live. Returns [{ file, changes }] for files that changed.
+ * @param {string[]} inputs
+ * @param {{style?: string, ignoreDomains?: string[], referenceDomains?: boolean, includePrivate?: boolean, skipCode?: boolean, extensions?: string[], dryRun?: boolean}} [opts]
+ */
+export function fix(inputs, opts = {}) {
+  const exts = (opts.extensions || DEFAULT_EXTENSIONS).map((e) => (e.startsWith('.') ? e : `.${e}`).toLowerCase());
+  const ignoreDomains = [...(opts.referenceDomains === false ? [] : REFERENCE_DOMAINS), ...(opts.ignoreDomains || [])];
+  const out = [];
+  for (const inp of inputs) {
+    const isDir = statSync(inp).isDirectory();
+    for (const f of walk(inp, exts).filter((x) => !isDir || exts.includes(extname(x).toLowerCase()))) {
+      const buf = readFileSync(f); if (buf.subarray(0, 8000).includes(0)) continue;
+      const skipCode = opts.skipCode ?? MARKUP.has(extname(f).toLowerCase());
+      const r = defangText(buf.toString('utf8'), { style: opts.style, ignoreDomains, includePrivate: opts.includePrivate, skipCode });
+      if (r.changes) { if (!opts.dryRun) writeFileSync(f, r.text); out.push({ file: relative(process.cwd(), f) || f, changes: r.changes }); }
+    }
+  }
+  return out;
+}
+
+export const PRE_COMMIT_HOOK = `#!/bin/sh
+# defang-sentinel pre-commit hook: block commits that add live IOCs to docs/reports.
+files=$(git diff --cached --name-only --diff-filter=ACM | grep -Ei '\\.(md|markdown|txt|rst|adoc|html?|csv|ioc|yara?)$')
+[ -z "$files" ] && exit 0
+exec npx --no-install defang-sentinel check --skip-code $files
+`;
+/** Install a git pre-commit hook in repoDir (default cwd). Refuses to overwrite a foreign hook unless force. Returns the hook path. */
+export function installHook(repoDir = process.cwd(), { force = false } = {}) {
+  const gitDir = join(repoDir, '.git');
+  if (!existsSync(gitDir)) throw new Error(`No .git directory in ${repoDir}`);
+  const hook = join(gitDir, 'hooks', 'pre-commit');
+  if (existsSync(hook) && !force && !readFileSync(hook, 'utf8').includes('defang-sentinel')) throw new Error(`${hook} already exists (use --force to overwrite)`);
+  mkdirSync(dirname(hook), { recursive: true });
+  writeFileSync(hook, PRE_COMMIT_HOOK); chmodSync(hook, 0o755);
+  return hook;
 }
