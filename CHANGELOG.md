@@ -1,12 +1,14 @@
 # Changelog
 
-## 1.0.0 (2026-10-15)
+## 1.1.0 (2026-10-15)
 
 - **More vendor styles:** `paren` (`evil(.)com`) and `colon` (`hxxps[:]//`); refang also understands `(:)//`, `{://}`, `:[//]` and preserves case (`HXXP` → `HTTP`). `refangValue` round-trips every style for URLs, domains, IPs and emails (tested).
 - **Markdown/HTML-aware rewriting:** `--skip-code` / `{ skipCode: true }` leaves fenced blocks, inline code, `<pre>`, `<code>`, `<script>`, `<style>` and comments untouched for defang, refang and check. New `splitCode()` helper.
 - **`check --fix`** and `fix()` API defang findings in place (code-aware for Markdown/HTML).
 - **Pre-commit hook:** `defang-sentinel hook install`, `installHook()`, and a `.pre-commit-hooks.yaml` for the pre-commit framework.
 - Dual ESM + CJS build, generated `.d.ts`, require/import CI checks. defang-sentinel is the single home of defang/refang for the Louis Wright toolset (ioc-sentinel imports it).
+
+## 1.0.0 (2026-10-14)
 
 First release, by Louis Wright.
 
