@@ -76,6 +76,47 @@ defangValue('bad@phish.ru');                                     // 'bad[@]phish
 const report = check(['reports/'], { skipCode: true });
 ```
 
+## Options
+
+Full CLI reference (`defang-sentinel --help`):
+
+```text
+defang-sentinel 1.1.0 — defang/refang IOCs and keep live indicators out of reports
+
+Usage:
+  defang-sentinel defang [file|-] [--style s] [--write]   make URLs, domains, IPs, emails safe to share
+  defang-sentinel refang [file|-] [--write]               turn hxxps://evil[.]com back into https://evil.com
+  defang-sentinel [check] <file|dir...> [options]         fail on live indicators (default command)
+  defang-sentinel check --fix <file|dir...>               defang live indicators in place, then re-check
+  defang-sentinel hook install [--force]                  install a git pre-commit hook
+
+Defang/refang
+      --style <s>            brackets | full | dot | minimal | paren | colon (default brackets)
+                               brackets: hxxps://evil[.]com/a.php   full: hxxps[://]evil[.]com/a[.]php
+                               dot: hxxps://evil[dot]com            minimal: hxxps://www.evil[.]com
+                               paren: hxxps://evil(.)com            colon: hxxps[:]//evil[.]com
+      --skip-code            Leave Markdown code blocks / inline code and HTML <pre>/<code> untouched
+  -w, --write                Rewrite the file in place instead of printing
+Check
+      --ignore-domain <list> Domains that may stay live (globs ok, repeatable)
+      --no-reference-domains Also flag links to mitre.org, nvd.nist.gov, virustotal.com, github.com etc.
+      --include-private      Also flag private/loopback IPs
+      --skip-code            Ignore fenced code blocks, inline code and HTML <pre>/<code>
+      --fix                  Defang findings in place (Markdown/HTML code-aware) before reporting
+      --force                (hook install) overwrite an existing pre-commit hook
+      --ext <list>           Extensions to scan in directories (default .md,.markdown,.txt,.rst,.adoc,.html,...)
+Policy and output
+  -c, --config <file>        JSON config (default .defang-sentinel.json if present)
+  -f, --format <fmt>         text (default) | json | sarif | markdown
+      --json/--sarif/--markdown <file>  Also write that format to a file
+      --fail-on <sev>        critical | high | medium | low | info | none (default medium)
+      --list-rules           Print rules and default severities
+      --no-color             Disable colours
+  -v, --version / -h, --help
+
+Exit codes: 0 = passed, 1 = findings at or above --fail-on, 2 = usage error or a target could not be checked.
+```
+
 ## Configuration
 
 Put a `.defang-sentinel.json` in the working directory (or pass `--config <file>`). Every key is optional; CLI flags override the file.
